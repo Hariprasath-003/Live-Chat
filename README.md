@@ -1,65 +1,72 @@
 # 💬 Live Chat App
 
-A real-time chat web application built with **Django**, **Django Channels**, and **WebSockets**, with full support for **image/audio/file uploads**, **typing indicators**, **push notifications**, and more — all deployed on [Render](https://render.com).
+A real-time chat web application built with **Django**, **Django Channels**, and **WebSockets**. Supports image/audio/file uploads, typing indicators, push notifications, dark mode, and more — all deployed on **Render**.
 
-🌐 **Live Demo**: [https://live-chat-g0z4.onrender.com/](https://live-chat-g0z4.onrender.com/)
+🌐 **Live Demo:** [https://live-chat-g0z4.onrender.com/](https://live-chat-g0z4.onrender.com/)
 
 ---
 
 ## ⚡ Features
 
-- 🔥 Real-time messaging with WebSocket (Django Channels)
-- 💾 Message persistence in SQLite DB
-- 🎧 Voice recording & playback
-- 📷 Image & file uploads (stored via **Cloudinary**)
-- ⏳ Upload progress bar with AJAX
-- 👀 Typing indicators
-- 🌙 Dark mode toggle
-- 🔔 Sound alerts + browser push notifications
-- 🖼️ Responsive Bootstrap 5 frontend with **Vanta.js fog** background
+- 🔥 Real-time messaging with WebSockets (Django Channels)
+- 💾 Message persistence with SQLite
+- 🎧 Voice recording & playback support
+- 📷 Image & file uploads (Cloudinary integration)
+- ⏳ AJAX upload progress bar
+- 👀 Typing indicators in chat
+- 🌙 Dark mode toggle for better UX
+- 🔔 Sound alerts and browser push notifications
+- 🖼️ Responsive Bootstrap 5 frontend with Vanta.js fog background
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer         | Technology                             |
-|---------------|-----------------------------------------|
-| Backend       | Django 3.2, Django Channels             |
-| WebSockets    | ASGI + Redis (via Upstash)             |
-| Realtime DB   | SQLite (local), Cloudinary (media)     |
-| Frontend      | HTML, CSS, JS, Bootstrap 5             |
-| Audio         | Web Audio API, AJAX, `<audio>` tag     |
-| Uploads       | Cloudinary Storage                     |
-| Deployment    | Render (Free Tier)                     |
+| Layer      | Technology                                |
+|------------|-------------------------------------------|
+| **Backend**| Django 3.2, Django Channels                |
+| **WebSockets** | ASGI + Redis (Upstash)                |
+| **Database**| SQLite (Local), Cloudinary (Media files) |
+| **Frontend**| HTML, CSS, JavaScript, Bootstrap 5       |
+| **Audio**   | Web Audio API, `<audio>` tag, AJAX       |
+| **Uploads** | Cloudinary Storage                       |
+| **Deployment** | Render (Free Tier)                    |
 
 ---
 
 ## 🚀 Getting Started (Local Setup)
 
 ### 1. Clone the repository
-
+```bash
 git clone https://github.com/YourUsername/Live-Chat.git
 cd Live-Chat
+```
 
-2. Create virtual environment and install dependencies
-
+### 2. Create virtual environment and install dependencies
+```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+```
 
-3. Set up .env for Cloudinary & other secrets
-
+### 3. Set up `.env` file for Cloudinary & secrets
+```env
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+```
 
-4. Run the app
-
+### 4. Apply migrations and run the app
+```bash
 python manage.py migrate
 daphne Live_Chat.asgi:application
+```
 
-Project Structure
+---
 
+## 🗂️ Project Structure
+
+```
 Live_Chat/
 ├── Chat/
 │   ├── templates/
@@ -74,19 +81,27 @@ Live_Chat/
 ├── db.sqlite3
 ├── manage.py
 └── README.md
+```
 
+---
 
-Deployment
-The app is deployed on Render with:
+## 🚀 Deployment
 
-daphne ASGI server
+The app is deployed using:
+- **Render** (Django + ASGI via `daphne`)
+- **Cloudinary** for media file hosting
+- **Upstash Redis** for real-time WebSocket messaging
 
-Cloudinary for media
+---
 
-Upstash Redis for Channels
+## 🙌 Author
 
-🙌 Author
-Hariprasath
-Fullstack Developer
+**Hariprasath**  
+Fullstack Developer  
+[GitHub](https://github.com/Hariprasath-003) | [LinkedIn](https://www.linkedin.com/in/hariprasath-l-174b54270)
 
+---
 
+## 📄 License
+
+This project is licensed under the MIT License — feel free to use, modify, and share.
