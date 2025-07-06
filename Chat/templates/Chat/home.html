@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Add viewport for responsiveness -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.3.0/font/bootstrap-icons.css">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --chat-bg: #fff;
+      --message-bg: #e9ecef;
+      --me-bg: #d1e7dd;
+    }
+    [data-theme="dark"] {
+      --bg: #121212;
+      --text: #ffffff;
+      --chat-bg: #1e1e1e;
+      --message-bg: #2a2a2a;
+      --me-bg: #3a4d3f;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    #theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+    }
+    #chat-container {
+      background: var(--chat-bg);
+      height: 75vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+      font-size: 1.05rem;
+      border-radius: 10px;
+      margin: 0 auto 10px auto;
+      width: 90%;
+      max-width: 700px;
+      transition: width 0.2s;
+    }
+    .chat-message {
+      background: var(--message-bg);
+      margin-bottom: 12px;
+      padding: 8px 14px;
+      border-radius: 18px;
+      display: inline-block;
+      max-width: 100%;
+      word-break: break-word;
+    }
+    .chat-message.me {
+      background: var(--me-bg);
+      margin-left: auto;
+    }
+    .chat-username {
+      font-weight: bold;
+      color: #198754;
+      margin-right: 6px;
+    }
+    .bar {
+      background-color: var(--chat-bg);
+      padding: 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      border-top: 1px solid #ccc;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.04);
+      max-width: 700px;
+      margin: 0 auto;
+      width: 90%;
+      flex-wrap: wrap;
+    }
+    #typing-status {
+      font-size: 1rem;
+      color:rgb(125, 10, 136);
+      position:fixed;
+      bottom: 5%;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 10;
+      width: 100%;
+      pointer-events: none;
+    }
+    .progress {
+      width: 90%;
+      max-width: 700px;
+      height: 5px;
+      margin: -5px auto 0 auto;
+      display: none;
+    }
+    
+  </style>
+</head>
+<body data-theme="light">
+<div id="bg">
+  <button id="theme-toggle" class="btn btn-sm btn-outline-dark float-end mx-3">🌓</button>
+  <input type="hidden" id="csrf-token" value="{{ csrf_token }}">
+  <div id="chat-container" class="d-flex flex-column">
+    {% for msg in messages %}
+        <div class="chat-message{% if msg.user.username == request.user.username %} me{% endif %}">
+            <span class="chat-username">{{ msg.user.username }}:</span>
+            {{ msg.content|default:"" }}
+            {% if msg.file %}
+                {% if msg.is_image_file %}
+                    <img src="{{ msg.file.url }}" style="max-width: 300px; display: block; margin-top: 5px;" />
+                {% elif msg.is_audio_file %}
+                    <audio controls style="max-width: 200px; display: block; margin-top: 5px;">
+                        <source src="{{ msg.file.url }}">
+                    </audio>
+                {% else %}
+                    <a href="{{ msg.file.url }}" download style="display: block; margin-top: 5px;">📎 Download File</a>
+                {% endif %}
+            {% endif %}
+        </div>
+    {% endfor %}
+  </div>
+
+  <div id="typing-status" class="px-4"></div>
+
+  <div class="bar px-3">
+    <label for="file-input" class="btn btn-outline-secondary">📎</label>
+    <input type="file" id="file-input" hidden>
+    <button class="btn btn-outline-primary" id="record-btn"><i class="bi bi-mic-fill"></i></button>
+    <input id="message-input" type="text" class="form-control" placeholder="Type your message...">
+    <button class="btn btn-success" id="send-btn">Send</button>
+  </div>
+
+  <div class="progress">
+    <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: 0%"></div>
+  </div>
+</div>
+
+<!-- Username Modal -->
+<div class="modal fade" id="usernameModal" tabindex="-1" aria-labelledby="usernameModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bg-light">
+      <div class="modal-header">
+        <h5 class="modal-title">Enter Your Display Name</h5>
+      </div>
+      <div class="modal-body">
+        <input type="text" id="usernameInput" class="form-control" placeholder="Your name">
+        <div class="text-danger mt-2 d-none" id="username-error">Please enter a name.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="usernameSubmit" class="btn btn-success">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chat Script -->
+<script>
+let username = '';
+const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+const chatSocket = new WebSocket(`${wsScheme}://${window.location.host}/ws/chat/`);
+const container = document.getElementById('chat-container');
+const input = document.getElementById('message-input');
+const button = document.getElementById('send-btn');
+const fileInput = document.getElementById('file-input');
+const csrfToken = document.getElementById('csrf-token').value;
+const typingStatus = document.getElementById('typing-status');
+const progressContainer = document.querySelector('.progress');
+const progressBar = document.querySelector('.progress-bar');
+
+chatSocket.onmessage = function(e) {
+  const data = JSON.parse(e.data);
+  if (data.typing !== undefined) {
+    typingStatus.textContent = data.typing ? `${data.username} is typing...` : '';
+    if (!data.typing) {
+      setTimeout(() => { typingStatus.textContent = ''; }, 1000);
+    }
+    return;
+  }
+
+  const msgElem = document.createElement('div');
+  msgElem.className = 'chat-message' + (data.username === username ? ' me' : '');
+  msgElem.innerHTML = `<span class="chat-username">${data.username}:</span> ${data.message || ''}`;
+
+  if (data.file_url) {
+    if (data.is_image) {
+      msgElem.innerHTML += `<br><img src="${data.file_url}" style="max-width: 300px; margin-top: 5px;">`;
+    } else if (data.is_audio) {
+      msgElem.innerHTML += `<br><audio controls style="margin-top: 5px;"><source src="${data.file_url}"></audio>`;
+    } else {
+      msgElem.innerHTML += `<br><a href="${data.file_url}" download style="margin-top: 5px;">📎 Download File</a>`;
+    }
+  }
+
+  container.appendChild(msgElem);
+  container.scrollTop = container.scrollHeight;
+};
+
+button.onclick = () => {
+  const msg = input.value.trim();
+  if (msg) {
+    chatSocket.send(JSON.stringify({ username, message: msg }));
+    input.value = '';
+  }
+};
+
+input.addEventListener("keyup", e => { if (e.key === 'Enter') button.click(); });
+
+fileInput.addEventListener("change", () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('username', username);
+
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/upload/', true);
+  xhr.setRequestHeader('X-CSRFToken', csrfToken);
+
+  progressContainer.style.display = 'block';
+
+  xhr.upload.onprogress = function(e) {
+    if (e.lengthComputable) {
+      const percent = (e.loaded / e.total) * 100;
+      progressBar.style.width = percent + '%';
+    }
+  };
+
+  xhr.onload = () => {
+    progressContainer.style.display = 'none';
+    progressBar.style.width = '0%';
+    if (xhr.status === 200) {
+      console.log('Upload successful');
+    } else {
+      alert('Upload failed');
+    }
+  };
+
+  xhr.send(formData);
+  fileInput.value = '';
+});
+
+let typing = false;
+let typingTimeout;
+input.addEventListener('input', () => {
+  if (!typing) {
+    typing = true;
+    chatSocket.send(JSON.stringify({ username, typing: true }));
+  }
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    typing = false;
+    chatSocket.send(JSON.stringify({ username, typing: false }));
+  }, 1000);
+});
+
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  const body = document.body;
+  const currentTheme = body.getAttribute('data-theme');
+  body.setAttribute('data-theme', currentTheme === 'light' ? 'dark' : 'light');
+});
+
+// Show username modal only if not stored
+window.addEventListener('DOMContentLoaded', () => {
+  const savedName = localStorage.getItem('chat-username');
+  const usernameModal = new bootstrap.Modal(document.getElementById('usernameModal'), {
+    backdrop: 'static',
+    keyboard: false
+  });
+
+  if (savedName) {
+    username = savedName;
+    container.scrollTop = container.scrollHeight;
+  } else {
+    usernameModal.show();
+    document.getElementById('usernameSubmit').addEventListener('click', () => {
+      const input = document.getElementById('usernameInput');
+      const error = document.getElementById('username-error');
+      const value = input.value.trim();
+
+      if (value === '') {
+        error.classList.remove('d-none');
+        return;
+      }
+
+      error.classList.add('d-none');
+      username = value;
+      localStorage.setItem('chat-username', value);
+      usernameModal.hide();
+      container.scrollTop = container.scrollHeight;
+    });
+  }
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
